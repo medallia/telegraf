@@ -55,10 +55,11 @@ func (a *Aurora) SetDefaults() {
 func convertToNumeric(value string) (interface{}, bool) {
 	var err error
 	var val interface{}
-	if val, err = strconv.ParseFloat(value, 64); err != nil {
-		if val, err = strconv.ParseInt(value, 10, 64); err != nil {
-			return val, false
-		}
+	if val, err = strconv.ParseFloat(value, 64); err == nil {
+		return val, true
+	}
+	if val, err = strconv.ParseBool(value); err != nil {
+		return val.(bool), false
 	}
 	return val, true
 }

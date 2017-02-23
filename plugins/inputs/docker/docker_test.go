@@ -380,16 +380,16 @@ func (d FakeDockerClient) ContainerList(octx context.Context, options types.Cont
 }
 
 func (d FakeDockerClient) ContainerInspect(octx context.Context, id string) (types.ContainerJSON, error) {
-	switch (id) {
+	switch id {
 	case "e2173b9478a6ae55e237d4d74f8bbb753f0817192b5081334dc78476296b7dfb":
-		return types.ContainerJSON {
-			Config: &container.Config {
+		return types.ContainerJSON{
+			Config: &container.Config{
 				Env: []string{"AURORA_JOB_NAME=job1", "AURORA_TASK_INSTANCE=0"},
 			},
 		}, nil
 	case "b7dfbb9478a6ae55e237d4d74f8bbb753f0817192b5081334dc78476296e2173":
-		return types.ContainerJSON {
-			Config: &container.Config {
+		return types.ContainerJSON{
+			Config: &container.Config{
 				Env: []string{"AURORA_JOB_NAME=job2", "AURORA_TASK_INSTANCE=1"},
 			},
 		}, nil
@@ -454,6 +454,8 @@ func TestDockerGatherInfo(t *testing.T) {
 			"cpu":               "cpu3",
 			"container_version": "v2.2.2",
 			"engine_host":       "absol",
+			"service":           "job2",
+			"instance":          "1",
 		},
 	)
 	acc.AssertContainsTaggedFields(t,
@@ -500,6 +502,8 @@ func TestDockerGatherInfo(t *testing.T) {
 			"container_name":    "etcd2",
 			"container_image":   "quay.io:4443/coreos/etcd",
 			"container_version": "v2.2.2",
+			"service":           "job2",
+			"instance":          "1",
 		},
 	)
 

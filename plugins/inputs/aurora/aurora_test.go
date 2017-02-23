@@ -8,18 +8,10 @@ import (
 	"testing"
 
 	"github.com/influxdata/telegraf/testutil"
+	"github.com/stretchr/testify/assert"
 )
 
 var masterServer *httptest.Server
-
-var referenceMetrics = map[string]interface{} {
-	"assigner_launch_failures": "0",
-	"cron_job_triggers": "240",
-	"sla_cluster_mtta_ms": "18",
-	"sla_disk_small_mttr_ms": "1029",
-	"job_uptime_50.00_sec": "689291",
-	"sla_cpu_small_mtta_ms": "17",
-}
 
 //sla_role/prod/jobname_
 
@@ -28,10 +20,8 @@ func getRawMetrics() string {
 cron_job_triggers 240
 sla_cluster_mtta_ms 18
 sla_disk_small_mttr_ms 1029
-sla_role1/prod1/jobname1_job_uptime_50.00_sec 689291
 sla_cpu_small_mtta_ms 17
-jvm_prop_java.endorsed.dirs /usr/lib/jvm/java-8-openjdk-amd64/jre/lib/endorsed
-sla_role2/prod2/jobname2_job_uptime_50.00_sec 99`
+jvm_prop_java.endorsed.dirs /usr/lib/jvm/java-8-openjdk-amd64/jre/lib/endorsed`
 }
 
 func TestMain(m *testing.M) {
@@ -50,9 +40,71 @@ func TestMain(m *testing.M) {
 	os.Exit(rc)
 }
 
+func TestConvertToNumeric(t *testing.T) {
+	if _, isNumeric := convertToNumeric("0.000"); !isNumeric {
+		t.Fatalf("0.000 should have been numeric")
+	}
+	if _, isNumeric := convertToNumeric("7"); !isNumeric {
+		t.Fatalf("7 should have been numeric")
+	}
+	if boolVal, isNumeric := convertToNumeric("true"); !isNumeric {
+		if val := boolVal.(int); val != 1 {
+			t.Fatalf("true should have been converted to a 1")
+		}
+		t.Fatalf("true should have been numeric")
+	}
+	if boolVal, isNumeric := convertToNumeric("false"); !isNumeric {
+		if val := boolVal.(int); val != 0 {
+			t.Fatalf("true should have been converted to a 0")
+		}
+		t.Fatalf("true should have been numeric")
+	}
+	if _, isNumeric := convertToNumeric("&"); isNumeric {
+		t.Fatalf("& should not be numeric")
+	}
+}
+
+func TestIsJobMetric(t *testing.T) {
+	var notJobMetrics = []string{
+		"assigner_launch_failures",
+		"cron_job_triggers",
+		"sla_cluster_mtta_ms",
+		"sla_disk_small_mttr_ms",
+		"sla_cpu_small_mtta_ms",
+	}
+	for _, metric := range notJobMetrics {
+		if isJobMetric(metric) {
+			t.Fatalf("%s should not be a job metric", metric)
+		}
+	}
+	var isJobMetrics = []string{
+		"sla_role2/prod2/jobname2_job_uptime_50.00_sec",
+	}
+	for _, metric := range isJobMetrics {
+		if !isJobMetric(metric) {
+			t.Fatalf("%s should be a job metric", metric)
+		}
+	}
+}
+
+func TestParseJobSpecificMetric(t *testing.T) {
+	var expectedFields = map[string]interface{}{
+		"job_uptime_50.00_sec": 0,
+	} 
+	var expectedTags = map[string]string {
+		"role": "role2",
+		"env": "prod2",
+		"job": "jobname2",
+	}
+	key := "sla_role2/prod2/jobname2_job_uptime_50.00_sec"
+	value := 0
+	fields, tags := parseJobSpecificMetric(key, value)
+	assert.Equal(t, fields, expectedFields)
+	assert.Equal(t, tags, expectedTags)
+}
+
 func TestAuroraMaster(t *testing.T) {
 	var acc testutil.Accumulator
-	acc.SetDebug(true)
 
 	m := Aurora{
 		Master: masterServer.Listener.Addr().String(),
@@ -66,97 +118,13 @@ func TestAuroraMaster(t *testing.T) {
 		t.Errorf(err.Error())
 	}
 
-	acc.AssertContainsFields(t, "aurora", referenceMetrics)
-	fmt.Printf("\n\n")
-	acc.AssertContainsFields(t, "aurora", referenceMetrics)
+	var referenceMetrics = map[string]interface{} {
+		"assigner_launch_failures": 0.0,
+		"cron_job_triggers": 240.0,
+		"sla_cluster_mtta_ms": 18.0,
+		"sla_disk_small_mttr_ms": 1029.0,
+		"sla_cpu_small_mtta_ms": 17.0,
+	}
 
-	// acc.AssertContainsFields(t, "mesos", masterMetrics)
+	acc.AssertContainsFields(t, "aurora", referenceMetrics)
 }
-
-// func TestMasterFilter(t *testing.T) {
-// 	m := Mesos{
-// 		MasterCols: []string{
-// 			"resources", "master", "registrar",
-// 		},
-// 	}
-// 	b := []string{
-// 		"system", "agents", "frameworks",
-// 		"messages", "evqueue", "tasks",
-// 	}
-
-// 	m.filterMetrics(MASTER, &masterMetrics)
-
-// 	for _, v := range b {
-// 		for _, x := range getMetrics(MASTER, v) {
-// 			if _, ok := masterMetrics[x]; ok {
-// 				t.Errorf("Found key %s, it should be gone.", x)
-// 			}
-// 		}
-// 	}
-// 	for _, v := range m.MasterCols {
-// 		for _, x := range getMetrics(MASTER, v) {
-// 			if _, ok := masterMetrics[x]; !ok {
-// 				t.Errorf("Didn't find key %s, it should present.", x)
-// 			}
-// 		}
-// 	}
-// }
-
-// func TestMesosSlave(t *testing.T) {
-// 	var acc testutil.Accumulator
-
-// 	m := Mesos{
-// 		Masters: []string{},
-// 		Slaves:  []string{slaveTestServer.Listener.Addr().String()},
-// 		// SlaveTasks: true,
-// 		Timeout: 10,
-// 	}
-
-// 	err := m.Gather(&acc)
-
-// 	if err != nil {
-// 		t.Errorf(err.Error())
-// 	}
-
-// 	acc.AssertContainsFields(t, "mesos", slaveMetrics)
-
-// 	// expectedFields := make(map[string]interface{}, len(slaveTaskMetrics["statistics"].(map[string]interface{}))+1)
-// 	// for k, v := range slaveTaskMetrics["statistics"].(map[string]interface{}) {
-// 	// 	expectedFields[k] = v
-// 	// }
-// 	// expectedFields["executor_id"] = slaveTaskMetrics["executor_id"]
-
-// 	// acc.AssertContainsTaggedFields(
-// 	// 	t,
-// 	// 	"mesos_tasks",
-// 	// 	expectedFields,
-// 	// 	map[string]string{"server": "127.0.0.1", "framework_id": slaveTaskMetrics["framework_id"].(string)})
-// }
-
-// func TestSlaveFilter(t *testing.T) {
-// 	m := Mesos{
-// 		SlaveCols: []string{
-// 			"resources", "agent", "tasks",
-// 		},
-// 	}
-// 	b := []string{
-// 		"system", "executors", "messages",
-// 	}
-
-// 	m.filterMetrics(SLAVE, &slaveMetrics)
-
-// 	for _, v := range b {
-// 		for _, x := range getMetrics(SLAVE, v) {
-// 			if _, ok := slaveMetrics[x]; ok {
-// 				t.Errorf("Found key %s, it should be gone.", x)
-// 			}
-// 		}
-// 	}
-// 	for _, v := range m.MasterCols {
-// 		for _, x := range getMetrics(SLAVE, v) {
-// 			if _, ok := slaveMetrics[x]; !ok {
-// 				t.Errorf("Didn't find key %s, it should present.", x)
-// 			}
-// 		}
-// 	}
-// }

@@ -34,7 +34,7 @@ type Docker struct {
 
 // DockerClient interface, useful for testing
 type DockerClient interface {
-	Info(ctx context.Context,) (types.Info, error)
+	Info(ctx context.Context) (types.Info, error)
 	ContainerInspect(ctx context.Context, id string) (types.ContainerJSON, error)
 	ContainerList(ctx context.Context, options types.ContainerListOptions) ([]types.Container, error)
 	ContainerStats(ctx context.Context, containerID string, stream bool) (io.ReadCloser, error)
