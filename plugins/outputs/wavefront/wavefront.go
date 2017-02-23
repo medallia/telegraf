@@ -201,7 +201,7 @@ func buildMetrics(m telegraf.Metric, w *Wavefront) []*MetricLine {
 		}
 		metricValue, buildError := buildValue(value, metric.Metric)
 		if buildError != nil {
-			log.Printf("E! Output [wavefront] %s\n", buildError.Error())
+			// log.Printf("E! Output [wavefront] %s\n", buildError.Error())
 			continue
 		}
 		metric.Value = metricValue

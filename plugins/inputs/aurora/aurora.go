@@ -52,13 +52,15 @@ func (a *Aurora) SetDefaults() {
 	}
 }
 
-func isValueNumeric(value string) bool {
-	if _, err := strconv.ParseFloat(value, 64); err != nil {
-		if _, err := strconv.ParseInt(value, 10, 64); err != nil {
-			return false
+func convertToNumeric(value string) (interface{}, bool) {
+	var err error
+	var val interface{}
+	if val, err = strconv.ParseFloat(value, 64); err != nil {
+		if val, err = strconv.ParseInt(value, 10, 64); err != nil {
+			return val, false
 		}
 	}
-	return true
+	return val, true
 }
 
 func isJobMetric(key string) bool {
@@ -67,7 +69,7 @@ func isJobMetric(key string) bool {
 	return re.MatchString(key)
 }
 
-func parseJobSpecificMetric(key, value string) (map[string]interface{}, map[string]string) {
+func parseJobSpecificMetric(key string, value interface{}) (map[string]interface{}, map[string]string) {
 	// cut off the sla_
 	key = key[4:]
 	slashSplit := strings.Split(key, "/")
@@ -118,22 +120,21 @@ func (a *Aurora) Gather(acc telegraf.Accumulator) error {
 		key := line[:splitIdx]
 		value := line[splitIdx+1:]
 		// If numeric is true and the metric is not numeric then ignore
-		if a.Numeric && !isValueNumeric(value) {
+		numeric, isNumeric := convertToNumeric(value)
+		if a.Numeric && !isNumeric {
 			continue
 		}
 
 		// If it matches this, then we want to parse it specially because it has jobnames in it
 		if isJobMetric(key) {
-			fields, tags := parseJobSpecificMetric(key, value)
+			fields, tags := parseJobSpecificMetric(key, numeric)
 			// Per job there are different tags so need to add a field per line
-			log.Printf("Job Field: %+v", fields)
 			acc.AddFields("aurora", fields, tags)
 		} else {
 			// No tags for other fields so can group add them
-			nonJobFields[key] = value
+			nonJobFields[key] = numeric
 		}
 	}
-	log.Printf("Non Job Fields: %+v", nonJobFields)
 	acc.AddFields("aurora", nonJobFields, make(map[string]string))
 	return nil
 }

@@ -1,6 +1,7 @@
 package system
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
 	"strings"
@@ -10,6 +11,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/container"
 	"github.com/docker/engine-api/types/registry"
 	"github.com/influxdata/telegraf/testutil"
 
@@ -375,6 +377,25 @@ func (d FakeDockerClient) ContainerList(octx context.Context, options types.Cont
 	return containers, nil
 
 	//#{e6a96c84ca91a5258b7cb752579fb68826b68b49ff957487695cd4d13c343b44 titilambert/snmpsim /bin/sh -c 'snmpsimd --agent-udpv4-endpoint=0.0.0.0:31161 --process-user=root --process-group=user' 1455724831 Up 4 hours [{31161 31161 udp 0.0.0.0}] 0 0 [/snmp] map[]}]2016/02/24 01:05:01 Gathered metrics, (3s interval), from 1 inputs in 1.233836656s
+}
+
+func (d FakeDockerClient) ContainerInspect(octx context.Context, id string) (types.ContainerJSON, error) {
+	switch (id) {
+	case "e2173b9478a6ae55e237d4d74f8bbb753f0817192b5081334dc78476296b7dfb":
+		return types.ContainerJSON {
+			Config: &container.Config {
+				Env: []string{"AURORA_JOB_NAME=job1", "AURORA_TASK_INSTANCE=0"},
+			},
+		}, nil
+	case "b7dfbb9478a6ae55e237d4d74f8bbb753f0817192b5081334dc78476296e2173":
+		return types.ContainerJSON {
+			Config: &container.Config {
+				Env: []string{"AURORA_JOB_NAME=job2", "AURORA_TASK_INSTANCE=1"},
+			},
+		}, nil
+	default:
+		return types.ContainerJSON{}, fmt.Errorf("Couldn't inspect a container with id %s", id)
+	}
 }
 
 func (d FakeDockerClient) ContainerStats(ctx context.Context, containerID string, stream bool) (io.ReadCloser, error) {

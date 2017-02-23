@@ -34,7 +34,8 @@ type Docker struct {
 
 // DockerClient interface, useful for testing
 type DockerClient interface {
-	Info(ctx context.Context) (types.Info, error)
+	Info(ctx context.Context,) (types.Info, error)
+	ContainerInspect(ctx context.Context, id string) (types.ContainerJSON, error)
 	ContainerList(ctx context.Context, options types.ContainerListOptions) ([]types.Container, error)
 	ContainerStats(ctx context.Context, containerID string, stream bool) (io.ReadCloser, error)
 }
@@ -124,10 +125,17 @@ func (d *Docker) Gather(acc telegraf.Accumulator) error {
 	for _, container := range containers {
 		go func(c types.Container) {
 			defer wg.Done()
-			err := d.gatherContainer(c, acc)
+
+			inspectCtx, inspectCancel := context.WithTimeout(context.Background(), d.Timeout.Duration)
+			defer inspectCancel()
+
+			ic, err := d.client.ContainerInspect(inspectCtx, c.ID)
 			if err != nil {
-				log.Printf("E! Error gathering container %s stats: %s\n",
-					c.Names, err.Error())
+				log.Printf("E! Error inspecting container %s: %s\n", c.Names, err.Error())
+			}
+
+			if err := d.gatherContainer(c, ic, acc); err != nil {
+				log.Printf("E! Error gathering container %s stats: %s\n", c.Names, err.Error())
 			}
 		}(container)
 	}
@@ -209,8 +217,18 @@ func (d *Docker) gatherInfo(acc telegraf.Accumulator) error {
 	return nil
 }
 
+func getEnvironmentVariable(envs []string, prefix string) string {
+	for _, env := range envs {
+		if strings.HasPrefix(env, prefix) {
+			return strings.TrimPrefix(env, prefix)
+		}
+	}
+	return ""
+}
+
 func (d *Docker) gatherContainer(
 	container types.Container,
+	inspectContainer types.ContainerJSON,
 	acc telegraf.Accumulator,
 ) error {
 	var v *types.StatsJSON
@@ -224,7 +242,7 @@ func (d *Docker) gatherContainer(
 	// the image name sometimes has a version part, or a private repo
 	//   ie, rabbitmq:3-management or docker.someco.net:4443/rabbitmq:3-management
 	imageName := ""
-	imageVersion := "unknown"
+	imageVersion := "latest"
 	i := strings.LastIndex(container.Image, ":") // index of last ':' character
 	if i > -1 {
 		imageVersion = container.Image[i+1:]
@@ -243,6 +261,13 @@ func (d *Docker) gatherContainer(
 		if !sliceContains(cname, d.ContainerNames) {
 			return nil
 		}
+	}
+
+	if val := getEnvironmentVariable(inspectContainer.Config.Env, "AURORA_JOB_NAME="); val != "" {
+		tags["service"] = val
+	}
+	if val := getEnvironmentVariable(inspectContainer.Config.Env, "AURORA_TASK_INSTANCE="); val != "" {
+		tags["instance"] = val
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), d.Timeout.Duration)
