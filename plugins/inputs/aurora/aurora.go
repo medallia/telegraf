@@ -90,7 +90,7 @@ func parseJobSpecificMetric(key string, value interface{}) (map[string]interface
 	return fields, tags
 } 
 
-// Gather() metrics from given list of Mesos Masters
+// Gather() metrics from given list of Aurora Masters
 func (a *Aurora) Gather(acc telegraf.Accumulator) error {
 	a.SetDefaults()
 

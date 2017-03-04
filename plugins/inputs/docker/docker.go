@@ -70,7 +70,7 @@ var sampleConfig = `
   ## Whether to report for each container total blkio and network stats or not
   total = false
   ## List of environment variables to add 
-  [[inputs.docker.envs]]
+  [inputs.docker.envs]
     foo1 = bar1
     foo2 = bar2
 `
@@ -221,15 +221,6 @@ func (d *Docker) gatherInfo(acc telegraf.Accumulator) error {
 	return nil
 }
 
-func getEnvironmentVariable(envs []string, prefix string) string {
-	for _, env := range envs {
-		if strings.HasPrefix(env, prefix) {
-			return strings.TrimPrefix(env, prefix)
-		}
-	}
-	return ""
-}
-
 func (d *Docker) gatherContainer(
 	container types.Container,
 	inspectContainer types.ContainerJSON,
@@ -270,7 +261,7 @@ func (d *Docker) gatherContainer(
 	// Iterate over the container environment variables and see if there are any variables to be tagged
 	for _, env := range inspectContainer.Config.Env {
 		equalsIdx := strings.Index(env, "=")
-		// Check if there isn't an equals sign or it sends with an equals sign
+		// Check if there isn't an equals sign or it ends with an equals sign
 		if equalsIdx == -1 || strings.Suffix(env, "=") {
 			continue
 		}

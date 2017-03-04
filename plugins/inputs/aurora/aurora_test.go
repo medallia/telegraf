@@ -53,9 +53,9 @@ func TestConvertToNumeric(t *testing.T) {
 	}
 	if boolVal, isNumeric := convertToNumeric("false"); !isNumeric {
 		if val := boolVal.(int); val != 0 {
-			t.Fatalf("true should have been converted to a 0")
+			t.Fatalf("false should have been converted to a 0")
 		}
-		t.Fatalf("true should have been numeric")
+		t.Fatalf("false should have been numeric")
 	}
 	if _, isNumeric := convertToNumeric("&"); isNumeric {
 		t.Fatalf("& should not be numeric")
