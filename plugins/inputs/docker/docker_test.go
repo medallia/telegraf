@@ -383,14 +383,12 @@ func (d FakeDockerClient) ContainerInspect(octx context.Context, id string) (typ
 	switch id {
 	case "e2173b9478a6ae55e237d4d74f8bbb753f0817192b5081334dc78476296b7dfb":
 		return types.ContainerJSON{
-			Config: &container.Config{
-				Env: []string{"AURORA_JOB_NAME=job1", "AURORA_TASK_INSTANCE=0"},
-			},
+			Config: &container.Config{},
 		}, nil
 	case "b7dfbb9478a6ae55e237d4d74f8bbb753f0817192b5081334dc78476296e2173":
 		return types.ContainerJSON{
 			Config: &container.Config{
-				Env: []string{"AURORA_JOB_NAME=job2", "AURORA_TASK_INSTANCE=1"},
+				Env: []string{"FOO_VARIABLE=foo_value"},
 			},
 		}, nil
 	default:
@@ -408,7 +406,13 @@ func (d FakeDockerClient) ContainerStats(ctx context.Context, containerID string
 func TestDockerGatherInfo(t *testing.T) {
 	var acc testutil.Accumulator
 	client := FakeDockerClient{}
-	d := Docker{client: client}
+	d := Docker {
+		client: client,
+		Envs: map[string]string {
+			"FOO_VARIABLE": "foo_tag",
+			"BAR_VARIABLE": "bar_tag",
+		},
+	}
 
 	err := d.Gather(&acc)
 
@@ -454,8 +458,7 @@ func TestDockerGatherInfo(t *testing.T) {
 			"cpu":               "cpu3",
 			"container_version": "v2.2.2",
 			"engine_host":       "absol",
-			"service":           "job2",
-			"instance":          "1",
+			"foo_tag":           "foo_value",
 		},
 	)
 	acc.AssertContainsTaggedFields(t,
@@ -502,8 +505,7 @@ func TestDockerGatherInfo(t *testing.T) {
 			"container_name":    "etcd2",
 			"container_image":   "quay.io:4443/coreos/etcd",
 			"container_version": "v2.2.2",
-			"service":           "job2",
-			"instance":          "1",
+			"foo_tag":           "foo_value",
 		},
 	)
 

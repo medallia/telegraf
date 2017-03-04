@@ -27,6 +27,7 @@ type Docker struct {
 	Timeout        internal.Duration
 	PerDevice      bool `toml:"perdevice"`
 	Total          bool `toml:"total"`
+	Envs 		   map[string]string `toml:"envs"`
 
 	client      DockerClient
 	engine_host string
@@ -68,7 +69,10 @@ var sampleConfig = `
   perdevice = true
   ## Whether to report for each container total blkio and network stats or not
   total = false
-
+  ## List of environment variables to add 
+  [[inputs.docker.envs]]
+    foo1 = bar1
+    foo2 = bar2
 `
 
 // Description returns input description
@@ -263,11 +267,17 @@ func (d *Docker) gatherContainer(
 		}
 	}
 
-	if val := getEnvironmentVariable(inspectContainer.Config.Env, "AURORA_JOB_NAME="); val != "" {
-		tags["service"] = val
-	}
-	if val := getEnvironmentVariable(inspectContainer.Config.Env, "AURORA_TASK_INSTANCE="); val != "" {
-		tags["instance"] = val
+	// Iterate over the container environment variables and see if there are any variables to be tagged
+	for _, env := range inspectContainer.Config.Env {
+		equalsIdx := strings.Index(env, "=")
+		// Check if there isn't an equals sign or it sends with an equals sign
+		if equalsIdx == -1 || strings.Suffix(env, "=") {
+			continue
+		}
+		prefix := env[:equalsIdx]
+		if associatedTag, ok := d.Envs[prefix]; ok {
+			tags[associatedTag] = env[equalsIdx+1:]
+		}
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), d.Timeout.Duration)

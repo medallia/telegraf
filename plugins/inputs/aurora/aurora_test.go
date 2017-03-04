@@ -13,8 +13,6 @@ import (
 
 var masterServer *httptest.Server
 
-//sla_role/prod/jobname_
-
 func getRawMetrics() string {
 	return `assigner_launch_failures 0
 cron_job_triggers 240
