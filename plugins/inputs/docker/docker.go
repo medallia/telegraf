@@ -25,9 +25,9 @@ type Docker struct {
 	Endpoint       string
 	ContainerNames []string
 	Timeout        internal.Duration
-	PerDevice      bool `toml:"perdevice"`
-	Total          bool `toml:"total"`
-	Envs 		   map[string]string `toml:"envs"`
+	PerDevice      bool              `toml:"perdevice"`
+	Total          bool              `toml:"total"`
+	Envs           map[string]string `toml:"envs"`
 
 	client      DockerClient
 	engine_host string

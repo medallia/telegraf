@@ -406,9 +406,9 @@ func (d FakeDockerClient) ContainerStats(ctx context.Context, containerID string
 func TestDockerGatherInfo(t *testing.T) {
 	var acc testutil.Accumulator
 	client := FakeDockerClient{}
-	d := Docker {
+	d := Docker{
 		client: client,
-		Envs: map[string]string {
+		Envs: map[string]string{
 			"FOO_VARIABLE": "foo_tag",
 			"BAR_VARIABLE": "bar_tag",
 		},
