@@ -262,7 +262,7 @@ func (d *Docker) gatherContainer(
 	for _, env := range inspectContainer.Config.Env {
 		equalsIdx := strings.Index(env, "=")
 		// Check if there isn't an equals sign or it ends with an equals sign
-		if equalsIdx == -1 || strings.Suffix(env, "=") {
+		if equalsIdx == -1 || strings.HasSuffix(env, "=") {
 			continue
 		}
 		prefix := env[:equalsIdx]

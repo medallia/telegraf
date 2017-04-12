@@ -15,10 +15,10 @@ import (
 )
 
 type Aurora struct {
-	Timeout    int
-	Master     string
-	HttpPrefix string
-	Numeric    bool
+	Timeout    int    `toml:"timeout"`
+	Master     string `toml:"master"`
+	HttpPrefix string `toml:"prefix"`
+	Numeric    bool   `toml:"numeric"`
 }
 
 var sampleConfig = `
@@ -44,7 +44,7 @@ func (a *Aurora) Description() string {
 
 func (a *Aurora) SetDefaults() {
 	if a.Timeout == 0 {
-		log.Println("I! [aurora] Missing timeout value, setting default value (100ms)")
+		log.Println("I! [aurora] Missing timeout value, setting default value (1000ms)")
 		a.Timeout = 1000
 	} else if a.HttpPrefix == "" {
 		log.Println("I! [aurora] Missing http prefix value, setting default value (http)")
@@ -70,6 +70,14 @@ func isJobMetric(key string) bool {
 	return re.MatchString(key)
 }
 
+func isTaskStore(key string) bool {
+	return strings.HasPrefix(key, "task_store_")
+}
+
+func isFramework(key string) bool {
+	return strings.HasPrefix(key, "framework_registered")
+}
+
 func parseJobSpecificMetric(key string, value interface{}) (map[string]interface{}, map[string]string) {
 	// cut off the sla_
 	key = key[4:]
@@ -88,6 +96,29 @@ func parseJobSpecificMetric(key string, value interface{}) (map[string]interface
 	tags["env"] = env
 	tags["job"] = job
 	return fields, tags
+}
+
+func parseTaskStore(key string, value interface{}) (map[string]interface{}, map[string]string) {
+	metric := "task.store." + strings.Replace(key[len("task_store_"):], "_", ".", -1)
+	fields := make(map[string]interface{})
+	fields[metric] = value
+	tags := make(map[string]string)
+	return fields, tags
+}
+
+func (a *Aurora) parseMetric(line string) (string, interface{}, error) {
+	splitIdx := strings.Index(line, " ")
+	if splitIdx == -1 {
+		return "", nil, fmt.Errorf("Invalid metric line %s has no value", line)
+	}
+	key := line[:splitIdx]
+	value := line[splitIdx+1:]
+	// If numeric is true and the metric is not numeric then ignore
+	numeric, isNumeric := convertToNumeric(value)
+	if a.Numeric && !isNumeric {
+		return "", nil, fmt.Errorf("Value is rejected due to being non-numeric")
+	}
+	return key, numeric, nil
 }
 
 // Gather() metrics from given list of Aurora Masters
@@ -112,20 +143,29 @@ func (a *Aurora) Gather(acc telegraf.Accumulator) error {
 	lines := strings.Split(string(data), "\n")
 	for _, line := range lines {
 		if isJobMetric(line) {
-			splitIdx := strings.Index(line, " ")
-			if splitIdx == -1 {
+			key, value, err := a.parseMetric(line)
+			if err != nil {
 				continue
 			}
-			key := line[:splitIdx]
-			value := line[splitIdx+1:]
-			// If numeric is true and the metric is not numeric then ignore
-			numeric, isNumeric := convertToNumeric(value)
-			if a.Numeric && !isNumeric {
-				continue
-			}
-			log.Printf("Key: %v. Numeric: %v", key, numeric)
-			fields, tags := parseJobSpecificMetric(key, numeric)
+			fields, tags := parseJobSpecificMetric(key, value)
 			// Per job there are different tags so need to add a field per line
+			acc.AddFields("aurora", fields, tags)
+		} else if isTaskStore(line) {
+			key, value, err := a.parseMetric(line)
+			if err != nil {
+				continue
+			}
+			fields, tags := parseTaskStore(key, value)
+			acc.AddFields("aurora", fields, tags)
+		} else if isFramework(line) {
+			key, value, err := a.parseMetric(line)
+			if err != nil {
+				continue
+			}
+			fields := map[string]interface{}{
+				key: value,
+			}
+			tags := make(map[string]string)
 			acc.AddFields("aurora", fields, tags)
 		}
 	}
