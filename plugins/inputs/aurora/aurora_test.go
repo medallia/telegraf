@@ -19,7 +19,8 @@ cron_job_triggers 240
 sla_cluster_mtta_ms 18
 sla_disk_small_mttr_ms 1029
 sla_cpu_small_mtta_ms 17
-jvm_prop_java.endorsed.dirs /usr/lib/jvm/java-8-openjdk-amd64/jre/lib/endorsed`
+jvm_prop_java.endorsed.dirs /usr/lib/jvm/java-8-openjdk-amd64/jre/lib/endorsed
+sla_role2/prod2/jobname2_job_uptime_50.00_sec 25`
 }
 
 func TestMain(m *testing.M) {
@@ -88,11 +89,11 @@ func TestIsJobMetric(t *testing.T) {
 func TestParseJobSpecificMetric(t *testing.T) {
 	var expectedFields = map[string]interface{}{
 		"job_uptime_50.00_sec": 0,
-	} 
-	var expectedTags = map[string]string {
+	}
+	var expectedTags = map[string]string{
 		"role": "role2",
-		"env": "prod2",
-		"job": "jobname2",
+		"env":  "prod2",
+		"job":  "jobname2",
 	}
 	key := "sla_role2/prod2/jobname2_job_uptime_50.00_sec"
 	value := 0
@@ -105,24 +106,19 @@ func TestAuroraMaster(t *testing.T) {
 	var acc testutil.Accumulator
 
 	m := Aurora{
-		Master: masterServer.Listener.Addr().String(),
-		Timeout: 10,
+		Master:     masterServer.Listener.Addr().String(),
+		Timeout:    10,
 		HttpPrefix: "http",
-		Numeric: true,
+		Numeric:    true,
 	}
 
 	err := m.Gather(&acc)
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Error(err)
 	}
 
-	var referenceMetrics = map[string]interface{} {
-		"assigner_launch_failures": 0.0,
-		"cron_job_triggers": 240.0,
-		"sla_cluster_mtta_ms": 18.0,
-		"sla_disk_small_mttr_ms": 1029.0,
-		"sla_cpu_small_mtta_ms": 17.0,
+	var referenceMetrics = map[string]interface{}{
+		"job_uptime_50.00_sec": 25.0,
 	}
-
 	acc.AssertContainsFields(t, "aurora", referenceMetrics)
 }

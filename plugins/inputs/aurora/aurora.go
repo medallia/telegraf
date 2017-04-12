@@ -18,7 +18,7 @@ type Aurora struct {
 	Timeout    int
 	Master     string
 	HttpPrefix string
-	Numeric bool
+	Numeric    bool
 }
 
 var sampleConfig = `
@@ -82,20 +82,20 @@ func parseJobSpecificMetric(key string, value interface{}) (map[string]interface
 
 	fields := make(map[string]interface{})
 	fields[metric] = value
-	
+
 	tags := make(map[string]string)
 	tags["role"] = role
 	tags["env"] = env
 	tags["job"] = job
 	return fields, tags
-} 
+}
 
 // Gather() metrics from given list of Aurora Masters
 func (a *Aurora) Gather(acc telegraf.Accumulator) error {
 	a.SetDefaults()
 
 	client := http.Client{
-    	Timeout: time.Duration(a.Timeout) * time.Second,
+		Timeout: time.Duration(a.Timeout) * time.Second,
 	}
 	url := fmt.Sprintf("%s://%s/vars", a.HttpPrefix, a.Master)
 	resp, err := client.Get(url)
@@ -109,34 +109,26 @@ func (a *Aurora) Gather(acc telegraf.Accumulator) error {
 	}
 	defer resp.Body.Close()
 
-	// Map for fields
-	nonJobFields := make(map[string]interface{})
-
 	lines := strings.Split(string(data), "\n")
 	for _, line := range lines {
-		splitIdx := strings.Index(line, " ")
-		if splitIdx == -1 {
-			continue
-		}
-		key := line[:splitIdx]
-		value := line[splitIdx+1:]
-		// If numeric is true and the metric is not numeric then ignore
-		numeric, isNumeric := convertToNumeric(value)
-		if a.Numeric && !isNumeric {
-			continue
-		}
-
-		// If it matches this, then we want to parse it specially because it has jobnames in it
-		if isJobMetric(key) {
+		if isJobMetric(line) {
+			splitIdx := strings.Index(line, " ")
+			if splitIdx == -1 {
+				continue
+			}
+			key := line[:splitIdx]
+			value := line[splitIdx+1:]
+			// If numeric is true and the metric is not numeric then ignore
+			numeric, isNumeric := convertToNumeric(value)
+			if a.Numeric && !isNumeric {
+				continue
+			}
+			log.Printf("Key: %v. Numeric: %v", key, numeric)
 			fields, tags := parseJobSpecificMetric(key, numeric)
 			// Per job there are different tags so need to add a field per line
 			acc.AddFields("aurora", fields, tags)
-		} else {
-			// No tags for other fields so can group add them
-			nonJobFields[key] = numeric
 		}
 	}
-	acc.AddFields("aurora", nonJobFields, make(map[string]string))
 	return nil
 }
 
