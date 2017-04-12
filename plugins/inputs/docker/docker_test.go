@@ -1,6 +1,7 @@
 package system
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
 	"strings"
@@ -10,6 +11,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/container"
 	"github.com/docker/engine-api/types/registry"
 	"github.com/influxdata/telegraf/testutil"
 
@@ -119,7 +121,6 @@ func TestDockerGatherContainerStats(t *testing.T) {
 
 	// test docker_container_cpu measurement
 	cputags := copyTags(tags)
-	cputags["cpu"] = "cpu-total"
 	cpufields := map[string]interface{}{
 		"usage_total":                  uint64(500),
 		"usage_in_usermode":            uint64(100),
@@ -132,20 +133,6 @@ func TestDockerGatherContainerStats(t *testing.T) {
 		"container_id":                 "123456789",
 	}
 	acc.AssertContainsTaggedFields(t, "docker_container_cpu", cpufields, cputags)
-
-	cputags["cpu"] = "cpu0"
-	cpu0fields := map[string]interface{}{
-		"usage_total":  uint64(1),
-		"container_id": "123456789",
-	}
-	acc.AssertContainsTaggedFields(t, "docker_container_cpu", cpu0fields, cputags)
-
-	cputags["cpu"] = "cpu1"
-	cpu1fields := map[string]interface{}{
-		"usage_total":  uint64(1002),
-		"container_id": "123456789",
-	}
-	acc.AssertContainsTaggedFields(t, "docker_container_cpu", cpu1fields, cputags)
 }
 
 func testStats() *types.StatsJSON {
@@ -377,6 +364,23 @@ func (d FakeDockerClient) ContainerList(octx context.Context, options types.Cont
 	//#{e6a96c84ca91a5258b7cb752579fb68826b68b49ff957487695cd4d13c343b44 titilambert/snmpsim /bin/sh -c 'snmpsimd --agent-udpv4-endpoint=0.0.0.0:31161 --process-user=root --process-group=user' 1455724831 Up 4 hours [{31161 31161 udp 0.0.0.0}] 0 0 [/snmp] map[]}]2016/02/24 01:05:01 Gathered metrics, (3s interval), from 1 inputs in 1.233836656s
 }
 
+func (d FakeDockerClient) ContainerInspect(octx context.Context, id string) (types.ContainerJSON, error) {
+	switch id {
+	case "e2173b9478a6ae55e237d4d74f8bbb753f0817192b5081334dc78476296b7dfb":
+		return types.ContainerJSON{
+			Config: &container.Config{},
+		}, nil
+	case "b7dfbb9478a6ae55e237d4d74f8bbb753f0817192b5081334dc78476296e2173":
+		return types.ContainerJSON{
+			Config: &container.Config{
+				Env: []string{"FOO_VARIABLE=foo_value"},
+			},
+		}, nil
+	default:
+		return types.ContainerJSON{}, fmt.Errorf("Couldn't inspect a container with id %s", id)
+	}
+}
+
 func (d FakeDockerClient) ContainerStats(ctx context.Context, containerID string, stream bool) (io.ReadCloser, error) {
 	var stat io.ReadCloser
 	jsonStat := `{"read":"2016-02-24T11:42:27.472459608-05:00","memory_stats":{"stats":{},"limit":18935443456},"blkio_stats":{"io_service_bytes_recursive":[{"major":252,"minor":1,"op":"Read","value":753664},{"major":252,"minor":1,"op":"Write"},{"major":252,"minor":1,"op":"Sync"},{"major":252,"minor":1,"op":"Async","value":753664},{"major":252,"minor":1,"op":"Total","value":753664}],"io_serviced_recursive":[{"major":252,"minor":1,"op":"Read","value":26},{"major":252,"minor":1,"op":"Write"},{"major":252,"minor":1,"op":"Sync"},{"major":252,"minor":1,"op":"Async","value":26},{"major":252,"minor":1,"op":"Total","value":26}]},"cpu_stats":{"cpu_usage":{"percpu_usage":[17871,4959158,1646137,1231652,11829401,244656,369972,0],"usage_in_usermode":10000000,"total_usage":20298847},"system_cpu_usage":24052607520000000,"throttling_data":{}},"precpu_stats":{"cpu_usage":{"percpu_usage":[17871,4959158,1646137,1231652,11829401,244656,369972,0],"usage_in_usermode":10000000,"total_usage":20298847},"system_cpu_usage":24052599550000000,"throttling_data":{}}}`
@@ -387,7 +391,13 @@ func (d FakeDockerClient) ContainerStats(ctx context.Context, containerID string
 func TestDockerGatherInfo(t *testing.T) {
 	var acc testutil.Accumulator
 	client := FakeDockerClient{}
-	d := Docker{client: client}
+	d := Docker{
+		client: client,
+		Envs: map[string]string{
+			"FOO_VARIABLE": "foo_tag",
+			"BAR_VARIABLE": "bar_tag",
+		},
+	}
 
 	err := d.Gather(&acc)
 
@@ -419,20 +429,6 @@ func TestDockerGatherInfo(t *testing.T) {
 		map[string]string{
 			"unit":        "bytes",
 			"engine_host": "absol",
-		},
-	)
-	acc.AssertContainsTaggedFields(t,
-		"docker_container_cpu",
-		map[string]interface{}{
-			"usage_total":  uint64(1231652),
-			"container_id": "b7dfbb9478a6ae55e237d4d74f8bbb753f0817192b5081334dc78476296e2173",
-		},
-		map[string]string{
-			"container_name":    "etcd2",
-			"container_image":   "quay.io:4443/coreos/etcd",
-			"cpu":               "cpu3",
-			"container_version": "v2.2.2",
-			"engine_host":       "absol",
 		},
 	)
 	acc.AssertContainsTaggedFields(t,
@@ -479,6 +475,7 @@ func TestDockerGatherInfo(t *testing.T) {
 			"container_name":    "etcd2",
 			"container_image":   "quay.io:4443/coreos/etcd",
 			"container_version": "v2.2.2",
+			"foo_tag":           "foo_value",
 		},
 	)
 

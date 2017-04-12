@@ -25,8 +25,9 @@ type Docker struct {
 	Endpoint       string
 	ContainerNames []string
 	Timeout        internal.Duration
-	PerDevice      bool `toml:"perdevice"`
-	Total          bool `toml:"total"`
+	PerDevice      bool              `toml:"perdevice"`
+	Total          bool              `toml:"total"`
+	Envs           map[string]string `toml:"envs"`
 
 	client      DockerClient
 	engine_host string
@@ -35,6 +36,7 @@ type Docker struct {
 // DockerClient interface, useful for testing
 type DockerClient interface {
 	Info(ctx context.Context) (types.Info, error)
+	ContainerInspect(ctx context.Context, id string) (types.ContainerJSON, error)
 	ContainerList(ctx context.Context, options types.ContainerListOptions) ([]types.Container, error)
 	ContainerStats(ctx context.Context, containerID string, stream bool) (io.ReadCloser, error)
 }
@@ -67,9 +69,11 @@ var sampleConfig = `
   perdevice = true
   ## Whether to report for each container total blkio and network stats or not
   total = false
-
+  ## List of environment variables to add 
+  [inputs.docker.envs]
+    foo1 = "bar1"
+    foo2 = "bar2"
 `
-
 // Description returns input description
 func (d *Docker) Description() string {
 	return "Read metrics about docker containers"
@@ -124,10 +128,17 @@ func (d *Docker) Gather(acc telegraf.Accumulator) error {
 	for _, container := range containers {
 		go func(c types.Container) {
 			defer wg.Done()
-			err := d.gatherContainer(c, acc)
+
+			inspectCtx, inspectCancel := context.WithTimeout(context.Background(), d.Timeout.Duration)
+			defer inspectCancel()
+
+			ic, err := d.client.ContainerInspect(inspectCtx, c.ID)
 			if err != nil {
-				log.Printf("E! Error gathering container %s stats: %s\n",
-					c.Names, err.Error())
+				log.Printf("E! Error inspecting container %s: %s\n", c.Names, err.Error())
+			}
+
+			if err := d.gatherContainer(c, ic, acc); err != nil {
+				log.Printf("E! Error gathering container %s stats: %s\n", c.Names, err.Error())
 			}
 		}(container)
 	}
@@ -211,6 +222,7 @@ func (d *Docker) gatherInfo(acc telegraf.Accumulator) error {
 
 func (d *Docker) gatherContainer(
 	container types.Container,
+	inspectContainer types.ContainerJSON,
 	acc telegraf.Accumulator,
 ) error {
 	var v *types.StatsJSON
@@ -224,7 +236,7 @@ func (d *Docker) gatherContainer(
 	// the image name sometimes has a version part, or a private repo
 	//   ie, rabbitmq:3-management or docker.someco.net:4443/rabbitmq:3-management
 	imageName := ""
-	imageVersion := "unknown"
+	imageVersion := "latest"
 	i := strings.LastIndex(container.Image, ":") // index of last ':' character
 	if i > -1 {
 		imageVersion = container.Image[i+1:]
@@ -245,6 +257,19 @@ func (d *Docker) gatherContainer(
 		}
 	}
 
+	// Iterate over the container environment variables and see if there are any variables to be tagged
+	for _, env := range inspectContainer.Config.Env {
+		equalsIdx := strings.Index(env, "=")
+		// Check if there isn't an equals sign or it ends with an equals sign
+		if equalsIdx == -1 || strings.HasSuffix(env, "=") {
+			continue
+		}
+		prefix := env[:equalsIdx]
+		if associatedTag, ok := d.Envs[prefix]; ok {
+			tags[associatedTag] = env[equalsIdx+1:]
+		}
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), d.Timeout.Duration)
 	defer cancel()
 	r, err := d.client.ContainerStats(ctx, container.ID, false)
@@ -258,11 +283,6 @@ func (d *Docker) gatherContainer(
 			return nil
 		}
 		return fmt.Errorf("Error decoding: %s", err.Error())
-	}
-
-	// Add labels to tags
-	for k, label := range container.Labels {
-		tags[k] = label
 	}
 
 	gatherContainerStats(v, acc, tags, container.ID, d.PerDevice, d.Total)
@@ -331,18 +351,7 @@ func gatherContainerStats(
 		"container_id":                 id,
 	}
 	cputags := copyTags(tags)
-	cputags["cpu"] = "cpu-total"
 	acc.AddFields("docker_container_cpu", cpufields, cputags, now)
-
-	for i, percpu := range stat.CPUStats.CPUUsage.PercpuUsage {
-		percputags := copyTags(tags)
-		percputags["cpu"] = fmt.Sprintf("cpu%d", i)
-		fields := map[string]interface{}{
-			"usage_total":  percpu,
-			"container_id": id,
-		}
-		acc.AddFields("docker_container_cpu", fields, percputags, now)
-	}
 
 	totalNetworkStatMap := make(map[string]interface{})
 	for network, netstats := range stat.Networks {
