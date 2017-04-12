@@ -121,7 +121,6 @@ func TestDockerGatherContainerStats(t *testing.T) {
 
 	// test docker_container_cpu measurement
 	cputags := copyTags(tags)
-	cputags["cpu"] = "cpu-total"
 	cpufields := map[string]interface{}{
 		"usage_total":                  uint64(500),
 		"usage_in_usermode":            uint64(100),
@@ -134,20 +133,6 @@ func TestDockerGatherContainerStats(t *testing.T) {
 		"container_id":                 "123456789",
 	}
 	acc.AssertContainsTaggedFields(t, "docker_container_cpu", cpufields, cputags)
-
-	cputags["cpu"] = "cpu0"
-	cpu0fields := map[string]interface{}{
-		"usage_total":  uint64(1),
-		"container_id": "123456789",
-	}
-	acc.AssertContainsTaggedFields(t, "docker_container_cpu", cpu0fields, cputags)
-
-	cputags["cpu"] = "cpu1"
-	cpu1fields := map[string]interface{}{
-		"usage_total":  uint64(1002),
-		"container_id": "123456789",
-	}
-	acc.AssertContainsTaggedFields(t, "docker_container_cpu", cpu1fields, cputags)
 }
 
 func testStats() *types.StatsJSON {
@@ -444,21 +429,6 @@ func TestDockerGatherInfo(t *testing.T) {
 		map[string]string{
 			"unit":        "bytes",
 			"engine_host": "absol",
-		},
-	)
-	acc.AssertContainsTaggedFields(t,
-		"docker_container_cpu",
-		map[string]interface{}{
-			"usage_total":  uint64(1231652),
-			"container_id": "b7dfbb9478a6ae55e237d4d74f8bbb753f0817192b5081334dc78476296e2173",
-		},
-		map[string]string{
-			"container_name":    "etcd2",
-			"container_image":   "quay.io:4443/coreos/etcd",
-			"cpu":               "cpu3",
-			"container_version": "v2.2.2",
-			"engine_host":       "absol",
-			"foo_tag":           "foo_value",
 		},
 	)
 	acc.AssertContainsTaggedFields(t,

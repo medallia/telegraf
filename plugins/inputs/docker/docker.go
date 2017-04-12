@@ -71,10 +71,9 @@ var sampleConfig = `
   total = false
   ## List of environment variables to add 
   [inputs.docker.envs]
-    foo1 = bar1
-    foo2 = bar2
+    foo1 = "bar1"
+    foo2 = "bar2"
 `
-
 // Description returns input description
 func (d *Docker) Description() string {
 	return "Read metrics about docker containers"
@@ -286,11 +285,6 @@ func (d *Docker) gatherContainer(
 		return fmt.Errorf("Error decoding: %s", err.Error())
 	}
 
-	// Add labels to tags
-	for k, label := range container.Labels {
-		tags[k] = label
-	}
-
 	gatherContainerStats(v, acc, tags, container.ID, d.PerDevice, d.Total)
 
 	return nil
@@ -357,18 +351,7 @@ func gatherContainerStats(
 		"container_id":                 id,
 	}
 	cputags := copyTags(tags)
-	cputags["cpu"] = "cpu-total"
 	acc.AddFields("docker_container_cpu", cpufields, cputags, now)
-
-	for i, percpu := range stat.CPUStats.CPUUsage.PercpuUsage {
-		percputags := copyTags(tags)
-		percputags["cpu"] = fmt.Sprintf("cpu%d", i)
-		fields := map[string]interface{}{
-			"usage_total":  percpu,
-			"container_id": id,
-		}
-		acc.AddFields("docker_container_cpu", fields, percputags, now)
-	}
 
 	totalNetworkStatMap := make(map[string]interface{})
 	for network, netstats := range stat.Networks {
