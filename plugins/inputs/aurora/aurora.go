@@ -23,7 +23,7 @@ type Aurora struct {
 
 var sampleConfig = `
   ## Timeout, in ms.
-  timeout = 100
+  timeout = 1000
   ## Aurora Master
   master = "localhost:8081"
   ## Http Prefix
@@ -59,7 +59,7 @@ func convertToNumeric(value string) (interface{}, bool) {
 		return val, true
 	}
 	if val, err = strconv.ParseBool(value); err != nil {
-		return val.(bool), false
+		return val, false
 	}
 	return val, true
 }
@@ -126,7 +126,7 @@ func (a *Aurora) Gather(acc telegraf.Accumulator) error {
 	a.SetDefaults()
 
 	client := http.Client{
-		Timeout: time.Duration(a.Timeout) * time.Second,
+		Timeout: time.Duration(a.Timeout) * time.Millisecond,
 	}
 	url := fmt.Sprintf("%s://%s/vars", a.HttpPrefix, a.Master)
 	resp, err := client.Get(url)
