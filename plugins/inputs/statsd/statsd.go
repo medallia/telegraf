@@ -177,6 +177,13 @@ func (_ *Statsd) SampleConfig() string {
 	return sampleConfig
 }
 
+func jmxName(name string, tags map[string]string) string {
+	if _, ok := tags["jmxport"]; ok {
+		return fmt.Sprintf("jmx.%s.%s.%s", name, tags["attribute"], tags["resultKey"])
+	}
+	return name
+}
+
 func (s *Statsd) Gather(acc telegraf.Accumulator) error {
 	s.Lock()
 	defer s.Unlock()
@@ -202,7 +209,7 @@ func (s *Statsd) Gather(acc telegraf.Accumulator) error {
 				fields[name] = stats.Percentile(percentile)
 			}
 		}
-
+		metric.name = jmxName(metric.name, metric.tags)
 		acc.AddFields(metric.name, fields, metric.tags, now)
 	}
 	if s.DeleteTimings {
@@ -210,6 +217,7 @@ func (s *Statsd) Gather(acc telegraf.Accumulator) error {
 	}
 
 	for _, metric := range s.gauges {
+		metric.name = jmxName(metric.name, metric.tags)
 		acc.AddFields(metric.name, metric.fields, metric.tags, now)
 	}
 	if s.DeleteGauges {
@@ -217,6 +225,7 @@ func (s *Statsd) Gather(acc telegraf.Accumulator) error {
 	}
 
 	for _, metric := range s.counters {
+		metric.name = jmxName(metric.name, metric.tags)
 		acc.AddFields(metric.name, metric.fields, metric.tags, now)
 	}
 	if s.DeleteCounters {
@@ -224,6 +233,7 @@ func (s *Statsd) Gather(acc telegraf.Accumulator) error {
 	}
 
 	for _, metric := range s.sets {
+		metric.name = jmxName(metric.name, metric.tags)
 		fields := make(map[string]interface{})
 		for field, set := range metric.fields {
 			fields[field] = int64(len(set))
