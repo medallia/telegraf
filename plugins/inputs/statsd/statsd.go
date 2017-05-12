@@ -179,7 +179,13 @@ func (_ *Statsd) SampleConfig() string {
 
 func jmxName(name string, tags map[string]string) string {
 	if _, ok := tags["jmxport"]; ok {
-		return fmt.Sprintf("jmx.%s.%s.%s", name, tags["attribute"], tags["resultKey"])
+		attribute := tags["attribute"]
+		delete(tags, "attribute")
+		if resultKey, ok := tags["resultKey"]; ok {
+			delete(tags, "resultKey")
+			return fmt.Sprintf("%s.%s.%s", name, attribute, resultKey)
+		}
+		return fmt.Sprintf("%s.%s", name, attribute)
 	}
 	return name
 }
