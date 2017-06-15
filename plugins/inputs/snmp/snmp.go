@@ -365,7 +365,6 @@ func (s *Snmp) Gather(acc telegraf.Accumulator) error {
 			defaultTags["rack"] = octets[2]
 			defaultTags["unit"] = octets[3]
 		}
-
 		topTags := map[string]string{}
 		if err := s.gatherTable(acc, gs, t, defaultTags, topTags, false); err != nil {
 			acc.AddError(Errorf(err, "agent %s", agent))
