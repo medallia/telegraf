@@ -1,7 +1,6 @@
 package oomkiller
 
 import (
-	"fmt"
 	"log"
 	"regexp"
 	"strings"
@@ -50,7 +49,7 @@ func (a *Oomkiller) Gather(acc telegraf.Accumulator) error {
 	seek = &tail.SeekInfo{Whence: 2, Offset: 0}
 	t, err := tail.TailFile(a.Logfile, tail.Config{Follow: true, Location: seek, ReOpen: true})
 	if err != nil {
-		return fmt.Errorf("Error: %v", err)
+		return err
 	}
 	for line := range t.Lines {
 		if IsOomkillerEvent(line.Text) && line.Text != "" {
