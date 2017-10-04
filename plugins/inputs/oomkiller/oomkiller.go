@@ -1,17 +1,18 @@
 package oomkiller
 
 import (
+	"fmt"
 	"log"
 	"regexp"
 	"strings"
 
+	"github.com/influxdata/tail"
 	"github.com/influxdata/telegraf"
 	"github.com/influxdata/telegraf/plugins/inputs"
-	"github.com/influxdata/tail"
 )
 
 type Oomkiller struct {
-	Logfile     string `toml:"logfile"`
+	Logfile string `toml:"logfile"`
 }
 
 var sampleConfig = `
@@ -46,8 +47,11 @@ func (a *Oomkiller) Gather(acc telegraf.Accumulator) error {
 	a.SetDefaults()
 	//This is to NOT start tailing log from the beginning
 	var seek *tail.SeekInfo
-	seek = &tail.SeekInfo{ Whence: 2, Offset: 0, }
-	t, _ := tail.TailFile(a.Logfile, tail.Config{ Follow: true, Location:  seek, ReOpen: true})
+	seek = &tail.SeekInfo{Whence: 2, Offset: 0}
+	t, err := tail.TailFile(a.Logfile, tail.Config{Follow: true, Location: seek, ReOpen: true})
+	if err != nil {
+		return fmt.Errorf("Error: %v", err)
+	}
 	for line := range t.Lines {
 		if IsOomkillerEvent(line.Text) && line.Text != "" {
 			s := strings.Split(line.Text, " ")
