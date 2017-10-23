@@ -46,7 +46,7 @@
       "cursubflowconn": "0"
     },
     {
-      "name": "opstest-fe.medallia.com",
+      "name": "opstest-fe.example.com",
       "sortorder": "descending",
       "vsvrsurgecount": "0",
       "establishedconn": "0",
@@ -88,7 +88,7 @@
       "cursubflowconn": "0"
     },
     {
-      "name": "opstest-fo.medallia.com",
+      "name": "opstest-fo.example.com",
       "sortorder": "descending",
       "vsvrsurgecount": "0",
       "establishedconn": "0",
@@ -130,7 +130,7 @@
       "cursubflowconn": "0"
     },
     {
-      "name": "opstest-fo2.medallia.com",
+      "name": "opstest-fo2.example.com",
       "sortorder": "descending",
       "vsvrsurgecount": "0",
       "establishedconn": "0",
@@ -172,7 +172,7 @@
       "cursubflowconn": "0"
     },
     {
-      "name": "opstest.medallia.com",
+      "name": "opstest.example2.com",
       "sortorder": "descending",
       "vsvrsurgecount": "0",
       "establishedconn": "0",
@@ -256,7 +256,7 @@
       "cursubflowconn": "0"
     },
     {
-      "name": "opstest1.medallia.com",
+      "name": "opstest1.example.com",
       "sortorder": "descending",
       "vsvrsurgecount": "0",
       "establishedconn": "0",
@@ -382,7 +382,7 @@
       "cursubflowconn": "0"
     },
     {
-      "name": "opstest-setup.medallia.com",
+      "name": "opstest-setup.example.com",
       "sortorder": "descending",
       "vsvrsurgecount": "0",
       "establishedconn": "0",
@@ -424,7 +424,7 @@
       "cursubflowconn": "0"
     },
     {
-      "name": "opstest-fe1.medallia.com",
+      "name": "opstest-fe1.example.com",
       "sortorder": "descending",
       "vsvrsurgecount": "0",
       "establishedconn": "0",
@@ -466,7 +466,7 @@
       "cursubflowconn": "0"
     },
     {
-      "name": "opstest-fe2.medallia.com",
+      "name": "opstest-fe2.example.com",
       "sortorder": "descending",
       "vsvrsurgecount": "0",
       "establishedconn": "0",
@@ -550,7 +550,7 @@
       "cursubflowconn": "0"
     },
     {
-      "name": "survey6.medallia.com",
+      "name": "survey6.example.com",
       "sortorder": "descending",
       "vsvrsurgecount": "0",
       "establishedconn": "0",
@@ -592,7 +592,7 @@
       "cursubflowconn": "0"
     },
     {
-      "name": "opstest-be.medallia.com",
+      "name": "opstest-be.example.com",
       "sortorder": "descending",
       "vsvrsurgecount": "0",
       "establishedconn": "0",

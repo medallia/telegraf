@@ -18,7 +18,7 @@ import (
  */
 var sampleConfig = `
   ## IP address of netscaler LB
-  # host = 127.0.0.1
+  # host = "127.0.0.1"
   ## Username
   # username = "admin"
   ## Password
@@ -102,17 +102,11 @@ func (n *Netscaler) fetchResource(url_path string) ([]byte, error) {
   }
 
   body, err = ioutil.ReadAll(resp.Body)
-  if (err != nil) {
-    return body, err
-  }
   return body, err
 }
 
 // Dispatches metrics to Telegraf
 func (n *Netscaler) Gather(acc telegraf.Accumulator) error {
-  var err error = nil
-  var body_raw []byte
-
   resources := make(map[string]interface{
     PublishMetrics(acc telegraf.Accumulator)
   })
@@ -120,15 +114,14 @@ func (n *Netscaler) Gather(acc telegraf.Accumulator) error {
 
   for resource, resStruct := range resources {
     // Connect to Netscaler and gather the result from the resource
-    body_raw, err  = n.fetchResource(resource)
+    body_raw, err  := n.fetchResource(resource)
     if (err != nil) {
       log.Fatal("Coud not get results from resource %s: %s",
         resource, err.Error())
       return err
     }
-
     if err := json.Unmarshal(body_raw, &resStruct); err != nil {
-      log.Fatal("Could not parse json from resource %s: %s",
+      log.Fatalf("Could not parse json from resource %s: %s",
         resource, err.Error())
       return err
     }
@@ -136,7 +129,7 @@ func (n *Netscaler) Gather(acc telegraf.Accumulator) error {
     // Here is where metrics are actually dispatched.
     resStruct.PublishMetrics(acc)
   }
-  return err
+  return nil
 }
 
 /*
@@ -149,10 +142,11 @@ func (n *Netscaler) Gather(acc telegraf.Accumulator) error {
  */
 func getTags(v reflect.Value) map[string]string {
   tags := make(map[string]string)
+  const tag string = "tag"
 
   for i := 0; i < v.NumField(); i++ {
     if ctag, ok := v.Type().Field(i).Tag.Lookup("typeofmetric"); ok {
-      if (ctag == "tag") {
+      if (ctag == tag) {
         fieldName := v.Type().Field(i).Name
         fieldValue := reflect.Indirect(v).Field(i).Interface().(string)
         tags[fieldName] = fieldValue
