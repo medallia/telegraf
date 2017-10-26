@@ -107,22 +107,20 @@ func (n *Netscaler) fetchResource(url_path string) ([]byte, error) {
 
 // Dispatches metrics to Telegraf
 func (n *Netscaler) Gather(acc telegraf.Accumulator) error {
-	resources := make(map[string]interface {
-		PublishMetrics(acc telegraf.Accumulator)
-	})
+	resources := make(map[string]NSResponse)
 	resources["/lbvserver/"] = new(LBVResponse)
 
 	for resource, resStruct := range resources {
 		// Connect to Netscaler and gather the result from the resource
 		body_raw, err := n.fetchResource(resource)
 		if err != nil {
-			log.Fatal("Coud not get results from resource %s: %s",
-				resource, err.Error())
+			log.Fatalf("Coud not get results from resource %s: %v",
+				resource, err)
 			return err
 		}
-		if err := json.Unmarshal(body_raw, &resStruct); err != nil {
-			log.Fatalf("Could not parse json from resource %s: %s",
-				resource, err.Error())
+		if err := json.Unmarshal(body_raw, resStruct); err != nil {
+			log.Fatalf("Could not parse json from resource %s: %v",
+				resource, err)
 			return err
 		}
 		// Call the implementation of PublishMetrics in the interface.
