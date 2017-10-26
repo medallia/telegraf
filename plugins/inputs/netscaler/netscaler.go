@@ -1,3 +1,7 @@
+/*
+ * Plugin for Citrix Netscaler's metrics.
+ * It connects to Nitro's endpoints and gathers metrics from there.
+ */
 package netscaler
 
 import (
@@ -13,9 +17,8 @@ import (
 	"github.com/influxdata/telegraf/plugins/inputs"
 )
 
-/*
- * Configuration sample for this plugin.
- */
+
+// Configuration sample for this plugin.
 var sampleConfig = `
   ## IP address of netscaler LB
   # host = "127.0.0.1"
@@ -46,9 +49,8 @@ type NSResponse interface {
 	publishMetrics(acc telegraf.Accumulator)
 }
 
-/*
- * Main struct used by Telegraf for this plugin.
- */
+
+// Main struct used by Telegraf for this plugin.
 type Netscaler struct {
 	Host     string
 	Username string
