@@ -43,7 +43,7 @@ var httpClient = &http.Client{
  * request to Netscaler's API.
  */
 type NSResponse interface {
-	PublishMetrics(acc telegraf.Accumulator)
+	publishMetrics(acc telegraf.Accumulator)
 }
 
 /*
@@ -125,7 +125,7 @@ func (n *Netscaler) Gather(acc telegraf.Accumulator) error {
 		}
 		// Call the implementation of PublishMetrics in the interface.
 		// Here is where metrics are actually dispatched.
-		resStruct.PublishMetrics(acc)
+		resStruct.publishMetrics(acc)
 	}
 	return nil
 }

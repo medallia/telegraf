@@ -57,10 +57,10 @@ type LBVResponse struct {
 }
 
 /*
- * Implementation of the PublishMetrics interface for LBVServers.
+ * Implementation of the publishMetrics interface for LBVServers.
  * Iterates on every 'lbvserver' and publishes the metrics to Telegraf.
  */
-func (l *LBVResponse) PublishMetrics(acc telegraf.Accumulator) {
+func (l *LBVResponse) publishMetrics(acc telegraf.Accumulator) {
 	for _, lbvh := range l.LBVservers {
 		v := reflect.ValueOf(lbvh)
 		counters := getMetrics(v, "counter")
