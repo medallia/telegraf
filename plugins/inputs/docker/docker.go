@@ -186,7 +186,7 @@ func (d *Docker) Gather(acc telegraf.Accumulator) error {
 	defer cancel()
 	containers, err := listWrapper(d.client, ctx, opts)
 	if err != nil {
-		sendErrorMetric(ctx, acc, d, err)
+		sendErrorMetric(ctx, acc, d.engine_host, err)
 		return err
 	}
 
@@ -207,18 +207,18 @@ func (d *Docker) Gather(acc telegraf.Accumulator) error {
 
 	return nil
 }
-func sendErrorMetric(ctx context.Context, acc telegraf.Accumulator, d *Docker, err error) {
+func sendErrorMetric(ctx context.Context, acc telegraf.Accumulator, engine_host string, err error) {
 	now := time.Now()
 	if ctx.Err() == context.DeadlineExceeded {
 		acc.AddFields("docker",
 			map[string]interface{}{"engine_timeout": 1},
-			map[string]string{"engine_host": d.engine_host},
+			map[string]string{"engine_host": engine_host},
 			now)
 	}
 	if client.IsErrConnectionFailed(err) {
 		acc.AddFields("docker",
 			map[string]interface{}{"engine_neterr": 1},
-			map[string]string{"engine_host": d.engine_host},
+			map[string]string{"engine_host": engine_host},
 			now)
 	}
 }
@@ -233,7 +233,7 @@ func (d *Docker) gatherInfo(acc telegraf.Accumulator) error {
 	defer cancel()
 	info, err := infoWrapper(d.client, ctx)
 	if err != nil {
-		sendErrorMetric(ctx, acc, d, err)
+		sendErrorMetric(ctx, acc, d.engine_host, err)
 		return err
 	}
 	d.engine_host = info.Name
